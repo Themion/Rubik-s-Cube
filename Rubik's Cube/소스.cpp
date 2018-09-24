@@ -124,6 +124,7 @@ class three_by_three
 
 private:
 	//현재 바라보고 있는 큐브의 면
+	//밑면과 윗면은 고려하지 않는다
 	int cubeFront = 0;
 
 	class Color color[6];
