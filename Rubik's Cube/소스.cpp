@@ -68,7 +68,7 @@ class three_by_three
 
 		//엣지 블록의 두 면
 		//0 : 윗면, 1 : 앞면
-		int *side = new int[2];
+		int side[2];
 
 	public:
 		edgePiece() {}
@@ -99,7 +99,7 @@ class three_by_three
 
 		//코너 블록의 세 면
 		//0 : 윗면, 1 : 왼면, 2 : 오른면
-		int *side = new int[3];
+		int side[3];
 
 	public:
 		cornerPiece() {}
@@ -123,6 +123,8 @@ class three_by_three
 	};
 
 private:
+	int front = 0;
+
 	class Color color[6];
 	class edgePiece edge[12] =
 	{
@@ -154,6 +156,15 @@ public:
 	Color getColor(int index) { return this->color[index]; }
 	edgePiece getEdge(int index) { return this->edge[index]; }
 	cornerPiece getCorner(int index) { return this->corner[index]; }
+
+	int if_edgeIn(int tEdge, Color tColor)
+	{
+		//tColor의 모든 엣지에 대해 존재한다면 1을 출력
+		for (int i = 0; i < 4; i++) if (tEdge == tColor.getEdge(i)) return 1; 
+
+		//for문을 벗어났을 때 찾지 못한다면 0을 출력
+		return 0;
+	}
 
 	void CW(int target)
 	{
@@ -300,6 +311,94 @@ public:
 			this->corner[tCorner[i]].setPos(this->getColor(target).getCorner((i + 3) % 4)); //((i + 3) % 4) 는 ((i - 1) + 4) % 4의 변형
 		}
 	}
+	void DCW(int target)
+	{
+		CW(target);
+		CW(target);
+	}
+	void DACW(int target)
+	{
+		ACW(target);
+		ACW(target);
+	}
+
+	void L()
+	{
+		CW(this->getColor(this->front).getBy(3));
+	}
+	void Lp()
+	{
+		ACW(this->getColor(this->front).getBy(3));
+	}
+	void L2()
+	{
+		L(); L();
+	}
+	
+	void R()
+	{
+		CW(this->getColor(this->front).getBy(1));
+	}
+	void Rp()
+	{
+		ACW(this->getColor(this->front).getBy(1));
+	}
+	void R2()
+	{
+		R(); R();
+	}
+	
+	void F()
+	{
+		CW(this->getColor(this->front).getSelf());
+	}
+	void Fp()
+	{
+		ACW(this->getColor(this->front).getSelf());
+	}
+	void F2() 
+	{
+		F(); F(); 
+	}
+	
+	void B()
+	{
+		CW(this->getColor((this->front + 2) % 4).getSelf());
+	}
+	void Bp()
+	{
+		ACW(this->getColor((this->front + 2) % 4).getSelf());
+	}
+	void B2()
+	{
+		B(); B();
+	}
+
+	void U()
+	{
+		CW(YELLOW);
+	}
+	void Up()
+	{
+		ACW(YELLOW);
+	}
+	void U2()
+	{
+		U(); U();
+	}
+
+	void D()
+	{
+		CW(WHITE);
+	}
+	void Dp()
+	{
+		ACW(WHITE);
+	}
+	void D2()
+	{
+		D(); D();
+	}
 
 	void visualize()
 	{
@@ -407,7 +506,7 @@ public:
 			}
 
 			//그렇지 않고 더 큰 쪽(단 ORANGE-BLUE에서는 더 작은 쪽) 면을 향한다면
-			else if (this->getCorner(pCorner[i]).getDir() == (i + 1))
+			else if (this->getCorner(pCorner[i]).getDir() == (i + 1) % 4)
 			{
 				//각 코너의 top(=side[0], dir)은 더 큰 쪽(단 ORANGE-BLUE에서는 더 작은 쪽) 면의 3행 1열에 해당
 				print[(i + 1) % 4][2][0] = this->getCorner(pCorner[i]).getTop();
@@ -445,7 +544,7 @@ public:
 			}
 
 			//그렇지 않고 더 큰 쪽(단 ORANGE-BLUE에서는 더 작은 쪽) 면을 향한다면
-			else if (this->getCorner(pCorner[i + 4]).getDir() == (i + 1))
+			else if (this->getCorner(pCorner[i + 4]).getDir() == (i + 1) % 4)
 			{
 				//각 코너의 top(=side[0], dir)은 더 큰 쪽(단 ORANGE-BLUE에서는 더 작은 쪽) 면의 3행 3열에 해당
 				print[(i + 1) % 4][0][0] = this->getCorner(pCorner[i + 4]).getTop();
@@ -471,28 +570,84 @@ public:
 			swap(cTemp[2][0], cTemp[3][0]);
 		}
 
-		
+		int i = print[0][2][0];
+
 		//노란색 면을 맨 상하단 주석에 맞게 출력
 		for (int i = 0; i < 3; i++) cout << "　　　　" << col[print[5][i][0]] << col[print[5][i][1]] << col[print[5][i][2]] << endl;
 		cout << endl;
 
 		//옆쪽 면들을 맨 상하단 주석에 맞게 출력
 		for (int i = 0; i < 3; i++)
-		{
-			for (int j = 0; j < 4; j++)
 			{
-				cout << col[print[(j + 3) % 4][i][0]] << col[print[(j + 3) % 4][i][1]] << col[print[(j + 3) % 4][i][2]] << "　";
-			}
+				for (int j = 0; j < 4; j++) cout << col[print[(j + 3) % 4][i][0]] << col[print[(j + 3) % 4][i][1]] << col[print[(j + 3) % 4][i][2]] << "　";
 
-			cout << endl;
-		}
+				cout << endl;
+			}
 
 		cout << endl;
 
 		//흰색 면을 맨 상하단 주석에 맞게 출력
 		for (int i = 0; i < 3; i++) cout << "　　　　" << col[print[4][i][0]] << col[print[4][i][1]] << col[print[4][i][2]] << endl;
 		cout << endl << endl;
-		
+	}
+
+	void step1_cross()
+	{
+		//0~3번 엣지에 대해서
+		for (int i = 0; i < 4; i++)
+		{
+			//i면을 제외한 모든 면에서 엣지를 발견 시 i면의 0번 위치로 엣지를 이동
+			for (int j = 0; j < 4; j++)
+			{
+				//j가 i일 때, 즉 확인할 면이 i면일 때는 컨티뉴
+				if (i == j) continue;
+
+				//만일 j 면에 i번째 엣지를 발견했다면
+				if (if_edgeIn(this->getEdge(i).getPos(), this->getColor(j)))
+				{
+					//0번 위치일 경우
+					if (this->getEdge(i).getPos() == this->getColor(j).getEdge(0))
+					{
+						//UUUU...
+						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) CW(YELLOW);
+					}
+
+					//j면의 1번 위치일 경우
+					else if (this->getEdge(i).getPos() == this->getColor(j).getEdge(1))
+					{
+						//F' UUUU... F
+						ACW(j); 
+						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) CW(YELLOW);
+						CW(j);
+					}
+
+					//j면의 2번 위치일 경우
+					else if (this->getEdge(i).getPos() == this->getColor(j).getEdge(2))
+					{
+						//F2' UUUU... F2
+						DACW(j);
+						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) CW(YELLOW);
+						DCW(j);
+					}
+				}
+			}
+
+			//0~3번 엣지의 dir이 color[i]를 가리키고 있지 않을 때(올바를 때)
+			if (this->getEdge(i).getDir() != this->getColor(i).getSelf())
+			{
+				//면을 n번 회전시켜 엣지를 올바른 위치에 놓는다
+				while (this->getEdge(i).getPos() != this->getColor(i).getEdge(2)) this->CW(i);
+			}
+
+			//0~3번 엣지의 dir이 color[i]를 가리키고 있을 때(바꿔야 할 때)
+			else
+			{
+				//면을 n번 회전시켜 크로스 공식을 사용할 수 있는 위치에 둔다
+				while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) this->CW(i);
+				//U' R' F R
+				ACW(YELLOW); ACW((i + 1) % 4); CW(i); CW((i + 1) % 4);
+			}
+		}
 	}
 };
 
@@ -500,7 +655,16 @@ int main()
 {
 	class three_by_three cube;
 
-	//구상중
+	
+	cube.R(); cube.D(); cube.R2(); cube.Up(); cube.Fp();
+	cube.U(); cube.Rp(); cube.Lp(); cube.F(); cube.Bp();
+	cube.Lp(); cube.D2(); cube.Up(); cube.Rp(); cube.U();
+	cube.F2(); cube.U2(); cube.L2(); cube.R2(); cube.Bp();
+	cube.Dp(); cube.U();  cube.D2(); cube.Lp(); cube.R();
+	
+	cube.visualize();
+	cube.step1_cross();
+	cube.visualize();
 
 	int i;
 	cin >> i;
