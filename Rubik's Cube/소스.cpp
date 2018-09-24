@@ -663,7 +663,7 @@ int main()
 	cube.Dp(); cube.U();  cube.D2(); cube.Lp(); cube.R();
 	
 	cube.visualize();
-	cube.step1_cross();
+	cube.basic_step1();
 	cube.visualize();
 
 	int i;
