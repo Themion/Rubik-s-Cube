@@ -123,7 +123,8 @@ class three_by_three
 	};
 
 private:
-	int front = 0;
+	//현재 바라보고 있는 큐브의 면
+	int cubeFront = 0;
 
 	class Color color[6];
 	class edgePiece edge[12] =
@@ -153,6 +154,9 @@ public:
 		for (int i = 0; i < 6; i++) color[i] = Color(i, by[i], edge[i], corner[i]);
 	}
 	
+	void setFront(int front) { this->cubeFront = front; }
+
+	int getFront() { return this->cubeFront; }
 	Color getColor(int index) { return this->color[index]; }
 	edgePiece getEdge(int index) { return this->edge[index]; }
 	cornerPiece getCorner(int index) { return this->corner[index]; }
@@ -161,6 +165,14 @@ public:
 	{
 		//tColor의 모든 엣지에 대해 존재한다면 1을 출력
 		for (int i = 0; i < 4; i++) if (tEdge == tColor.getEdge(i)) return 1; 
+
+		//for문을 벗어났을 때 찾지 못한다면 0을 출력
+		return 0;
+	}
+	int if_cornerIn(int tCorner, Color tColor)
+	{
+		//tColor의 모든 엣지에 대해 존재한다면 1을 출력
+		for (int i = 0; i < 4; i++) if (tCorner == tColor.getCorner(i)) return 1;
 
 		//for문을 벗어났을 때 찾지 못한다면 0을 출력
 		return 0;
@@ -311,24 +323,14 @@ public:
 			this->corner[tCorner[i]].setPos(this->getColor(target).getCorner((i + 3) % 4)); //((i + 3) % 4) 는 ((i - 1) + 4) % 4의 변형
 		}
 	}
-	void DCW(int target)
-	{
-		CW(target);
-		CW(target);
-	}
-	void DACW(int target)
-	{
-		ACW(target);
-		ACW(target);
-	}
-
+	
 	void L()
 	{
-		CW(this->getColor(this->front).getBy(3));
+		CW(this->getColor(this->getFront()).getBy(3));
 	}
 	void Lp()
 	{
-		ACW(this->getColor(this->front).getBy(3));
+		ACW(this->getColor(this->getFront()).getBy(3));
 	}
 	void L2()
 	{
@@ -337,11 +339,11 @@ public:
 	
 	void R()
 	{
-		CW(this->getColor(this->front).getBy(1));
+		CW(this->getColor(this->getFront()).getBy(1));
 	}
 	void Rp()
 	{
-		ACW(this->getColor(this->front).getBy(1));
+		ACW(this->getColor(this->getFront()).getBy(1));
 	}
 	void R2()
 	{
@@ -350,11 +352,11 @@ public:
 	
 	void F()
 	{
-		CW(this->getColor(this->front).getSelf());
+		CW(this->getColor(this->getFront()).getSelf());
 	}
 	void Fp()
 	{
-		ACW(this->getColor(this->front).getSelf());
+		ACW(this->getColor(this->getFront()).getSelf());
 	}
 	void F2() 
 	{
@@ -363,11 +365,11 @@ public:
 	
 	void B()
 	{
-		CW(this->getColor((this->front + 2) % 4).getSelf());
+		CW(this->getColor((this->getFront() + 2) % 4).getSelf());
 	}
 	void Bp()
 	{
-		ACW(this->getColor((this->front + 2) % 4).getSelf());
+		ACW(this->getColor((this->getFront() + 2) % 4).getSelf());
 	}
 	void B2()
 	{
@@ -593,7 +595,7 @@ public:
 
 	void basic_step1()
 	{
-		//0~3번 엣지에 대해서
+		//0~3번 엣지를 제자리에 위치시킨다 (크로스)
 		for (int i = 0; i < 4; i++)
 		{
 			//i면을 제외한 모든 면에서 엣지를 발견 시 i면의 0번 위치로 엣지를 이동
@@ -605,47 +607,104 @@ public:
 				//만일 j 면에 i번째 엣지를 발견했다면
 				if (if_edgeIn(this->getEdge(i).getPos(), this->getColor(j)))
 				{
+					this->setFront(j);
+
 					//0번 위치일 경우
-					if (this->getEdge(i).getPos() == this->getColor(j).getEdge(0))
+					if (this->getEdge(i).getPos() == this->getColor(this->getFront()).getEdge(0))
 					{
 						//UUUU...
-						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) CW(YELLOW);
+						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) this->U();
 					}
 
 					//j면의 1번 위치일 경우
-					else if (this->getEdge(i).getPos() == this->getColor(j).getEdge(1))
+					else if (this->getEdge(i).getPos() == this->getColor(this->getFront()).getEdge(1))
 					{
 						//F' UUUU... F
-						ACW(j); 
-						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) CW(YELLOW);
-						CW(j);
+						this->Fp();
+						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) this->U();
+						this->F();
 					}
 
 					//j면의 2번 위치일 경우
-					else if (this->getEdge(i).getPos() == this->getColor(j).getEdge(2))
+					else if (this->getEdge(i).getPos() == this->getColor(this->getFront()).getEdge(2))
 					{
-						//F2' UUUU... F2
-						DACW(j);
-						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) CW(YELLOW);
-						DCW(j);
+						//F2 UUUU... F2
+						this->F2();
+						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) this->U();
+						this->F2();
 					}
+
+					break;
 				}
 			}
 
+			this->setFront(i);
+
 			//0~3번 엣지의 dir이 color[i]를 가리키고 있지 않을 때(올바를 때)
-			if (this->getEdge(i).getDir() != this->getColor(i).getSelf())
+			if (this->getEdge(i).getDir() != this->getColor(this->getFront()).getSelf())
 			{
 				//면을 n번 회전시켜 엣지를 올바른 위치에 놓는다
-				while (this->getEdge(i).getPos() != this->getColor(i).getEdge(2)) this->CW(i);
+				while (this->getEdge(i).getPos() != this->getColor(this->getFront()).getEdge(2)) this->F();
 			}
 
 			//0~3번 엣지의 dir이 color[i]를 가리키고 있을 때(바꿔야 할 때)
 			else
 			{
 				//면을 n번 회전시켜 크로스 공식을 사용할 수 있는 위치에 둔다
-				while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) this->CW(i);
+				while (this->getEdge(i).getPos() != this->getColor(this->getFront()).getEdge(0)) this->F();
 				//U' R' F R
-				ACW(YELLOW); ACW((i + 1) % 4); CW(i); CW((i + 1) % 4);
+				this->Up(); this->Rp(); this->F(); this->R();
+			}
+		}
+	}
+	void basic_step2()
+	{
+		//1~3번 코너를 제자리에 위치시킨다
+		for (int i = 0; i < 4; i++)
+		{
+			//우선 각 코너가 1층에 끼어있는지 확인
+			for (int j = 0; j < 4; j++)
+			{
+				//만약 코너가 잘못된 1층 위치에 끼어있거나
+				//방향이 잘못된 상태로 끼어있을 경우
+				if (this->getCorner(i).getPos() == this->getColor(j).getCorner(1))
+				{
+					//올바른 장소, 올바른 방향일 경우 지나감
+					if ((i == j) && (this->getCorner(i).getDir() == WHITE)) break;
+
+					this->setFront(j);
+
+					//F' U F
+					Fp(); U(); F();
+					break;
+				}
+			}
+
+			this->setFront(i);
+		
+			//각 코너가 1층에 없거나 1층에서 나왔으면 3층에 있을 것임
+			//i번 코너를 공식을 사용할 수 있는 위치로 이동
+			while (this->getCorner(i).getPos() != this->getColor(this->getFront()).getCorner(0)) this->U();
+
+			//i번 코너의 방향이 i번 면을 가리키고 있다면
+			if (this->getCorner(i).getDir() == this->getFront())
+			{
+				//U R U' R'
+				this->U(); this->R(); this->Up(); this->Rp();
+			}
+
+			//i번 코너의 방향이 i+1번 면을 가리키고 있다면
+			else if (this->getCorner(i).getDir() == (this->getFront() + 1) % 4)
+			{
+				//R U R'
+				this->R(); this->U(); this->Rp();
+			}
+
+			//i번 코너의 방향이 위를 가리키고 있다면
+			else if (this->getCorner(i).getDir() == YELLOW)
+			{
+				//F' L' U2 L F'
+				this->Fp(); this->Lp(); this->U2(); this->L(); this->F();
 			}
 		}
 	}
@@ -661,9 +720,9 @@ int main()
 	cube.Lp(); cube.D2(); cube.Up(); cube.Rp(); cube.U();
 	cube.F2(); cube.U2(); cube.L2(); cube.R2(); cube.Bp();
 	cube.Dp(); cube.U();  cube.D2(); cube.Lp(); cube.R();
-	
-	cube.visualize();
+
 	cube.basic_step1();
+	cube.basic_step2();
 	cube.visualize();
 
 	int i;
