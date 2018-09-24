@@ -591,7 +591,7 @@ public:
 		cout << endl << endl;
 	}
 
-	void step1_cross()
+	void basic_step1()
 	{
 		//0~3번 엣지에 대해서
 		for (int i = 0; i < 4; i++)
@@ -655,7 +655,7 @@ int main()
 {
 	class three_by_three cube;
 
-	
+	//확인용 스크램블
 	cube.R(); cube.D(); cube.R2(); cube.Up(); cube.Fp();
 	cube.U(); cube.Rp(); cube.Lp(); cube.F(); cube.Bp();
 	cube.Lp(); cube.D2(); cube.Up(); cube.Rp(); cube.U();
