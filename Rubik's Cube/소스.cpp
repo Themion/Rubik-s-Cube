@@ -660,7 +660,7 @@ public:
 	}
 	void basic_step2()
 	{
-		//1~3번 코너를 제자리에 위치시킨다
+		//0~3번 코너를 제자리에 위치시킨다
 		for (int i = 0; i < 4; i++)
 		{
 			//우선 각 코너가 1층에 끼어있는지 확인
@@ -709,6 +709,65 @@ public:
 			}
 		}
 	}
+	void basic_step3()
+	{
+		//4~7번 엣지를 제자리에 위치시킨다
+		for (int i = 0; i < 4; i++)
+		{
+			//우선 각 엣지가 2층에 끼어있는지 확인
+			for (int j = 0; j < 4; j++)
+			{
+				//만일 엣지가 2층에 끼어있다면
+				if (this->getEdge(i + 4).getPos() == this->getColor(j).getEdge(1))
+				{
+					this->setFront(j);
+
+					//엣지가 제 자리에 있는 경우
+					if (i == j)
+					{
+						//방향이 다르다면 방향을 고쳐준다
+						if (this->getEdge(i + 4).getDir() != this->getColor(j).getSelf())
+						{
+							//R2 U2 F R2 F' U2 R' U R'
+							R2(); U2(); F(); R2(); Fp(); U2(); Rp(); U(); Rp();
+						}
+
+						continue;
+					}
+
+					//제 자리가 아닌 경우 엣지를 3층으로 빼 준다
+					else
+					{
+						//U R U' R' U' F' U F
+						U(); R(); Up(); Rp(); Up(); Fp(); U(); F();
+					}
+				}
+			}
+		
+			//엣지의 방향이 윗면을 향할 경우
+			if (this->getEdge(i + 4).getDir() == YELLOW)
+			{
+				this->setFront((i + 1) % 4);
+
+				//각 엣지의 위치가 i+1의 0번 위치로 이동할 때까지 U
+				while (this->getEdge(i + 4).getPos() != this->getColor((i + 1) % 4).getEdge(0)) U();
+
+				//U' L' U L U F U' F'
+				Up(); Lp(); U(); L(); U(); F(); Up(); Fp();
+			}
+			//엣지의 방향이 각 옆면을 향할 경우
+			else
+			{
+				this->setFront(i);
+
+				//각 엣지의 위치가 i의 0번 위치로 이동할 때까지 U
+				while (this->getEdge(i + 4).getPos() != this->getColor(i).getEdge(0)) U();
+
+				//U R U' R' U' F' U F
+				U(); R(); Up(); Rp(); Up(); Fp(); U(); F();
+			}
+		}
+	}
 };
 
 int main()
@@ -724,6 +783,7 @@ int main()
 
 	cube.basic_step1();
 	cube.basic_step2();
+	cube.basic_step3();
 	cube.visualize();
 
 	int i;
