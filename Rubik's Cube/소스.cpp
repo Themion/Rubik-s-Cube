@@ -126,15 +126,19 @@ private:
 	//현재 바라보고 있는 큐브의 면
 	//밑면과 윗면은 고려하지 않는다
 	int cubeFront = 0;
+	//각 옆면을 / 밑면 기준으로 / 파란색부터 / 시계 방향으로
+	int side[4] = { BLUE, RED, GREEN, ORANGE };
 
 	//다 맞춰진 상태의 큐브(참고용)
 	class Color color[6];
+	//큐브의 각 엣지 조각의 위치와 방향, 고유 정보
 	class edgePiece edge[12] =
 	{
 		edgePiece(0, WHITE,  BLUE), edgePiece(1, WHITE,  RED),   edgePiece(2,  WHITE,  GREEN),  edgePiece(3,  WHITE,  ORANGE),
 		edgePiece(4, BLUE,   RED),  edgePiece(5, RED,    GREEN), edgePiece(6,  GREEN,  ORANGE), edgePiece(7,  ORANGE, BLUE),
 		edgePiece(8, YELLOW, BLUE), edgePiece(9, YELLOW, RED),   edgePiece(10, YELLOW, GREEN),  edgePiece(11, YELLOW, ORANGE)
 	};
+	//큐브의 각 코너 조각의 위치와 방향, 고유 정보
 	class cornerPiece corner[8] =
 	{
 		cornerPiece(0, WHITE,  RED,  BLUE), cornerPiece(1, WHITE,  GREEN, RED),   cornerPiece(2, WHITE,  ORANGE, GREEN),  cornerPiece(3, WHITE,  BLUE,   ORANGE),
@@ -156,46 +160,55 @@ public:
 		for (int i = 0; i < 6; i++) color[i] = Color(i, by[i], edge[i], corner[i]);
 	}
 
+	//큐브를 바라보는 면, 즉 cubeFront면을 변경
 	void setFront(int front) { this->cubeFront = front; }
 
+	//큐브를 바라보는 면을 기준으로 앞면의 인덱스를 출력
 	int getFront() { return this->cubeFront; }
+	//큐브를 바라보는 면을 기준으로 오른면의 인덱스를 출력
 	int getRight() { return this->getColor(this->getFront()).getBy(1); }
+	//큐브를 바라보는 면을 기준으로 왼면의 인덱스를 출력
 	int getLeft()  { return this->getColor(this->getFront()).getBy(3); }
 
 	Color getColor(int index) { return this->color[index]; }
 	edgePiece getEdge(int index) { return this->edge[index]; }
 	cornerPiece getCorner(int index) { return this->corner[index]; }
 
-	int if_edgeIn(int tEdge, Color tColor)
-	{
-		//tColor의 모든 엣지에 대해 존재한다면 1을 출력
-		for (int i = 0; i < 4; i++) if (tEdge == tColor.getEdge(i)) return 1;
-
-		//for문을 벗어났을 때 찾지 못한다면 0을 출력
-		return 0;
-	}
-	int if_cornerIn(int tCorner, Color tColor)
-	{
-		//tColor의 모든 엣지에 대해 존재한다면 1을 출력
-		for (int i = 0; i < 4; i++) if (tCorner == tColor.getCorner(i)) return 1;
-
-		//for문을 벗어났을 때 찾지 못한다면 0을 출력
-		return 0;
-	}
-
+	//엣지를 pos로 검색하여 인덱스를 가져오는 함수
 	int find_edge_by_pos(int pos)
 	{
 		for (int i = 0; i < 12; i++) if (this->getEdge(i).getPos() == pos) return i;
+		return -1;
 	}
+	//코너를 pos로 검색하여 인덱스를 가져오는 함수
 	int find_corner_by_pos(int pos)
 	{
 		for (int i = 0; i < 8; i++) if (this->getCorner(i).getPos() == pos) return i;
+		return -1;
 	}
 
+	//edge의 한 면에 color가 있는지 확인하는 함수
+	int col_in_edge(int color, edgePiece *edge)
+	{
+		if (edge->getTop() == color) return 2;
+		else if (edge->getFront() == color) return 1;
+		
+		return -1;
+	}
+	//corner의 한 면에 color가 있는지 확인하는 함수
+	int col_in_corner(int color, cornerPiece *corner)
+	{
+		if (corner->getTop() == color) return 2;
+		else if ( (corner->getLeft() == color) || (corner->getRight() == color) ) return 1;
+
+		return -1;
+	}
+
+	//target 면을 시계방향/시계반대방향으로 회전시킨다
 	void CW(int target)
 	{
 		//변수 선언
-		int temp, index = 0;
+		int index = 0;
 
 		//움직일 네 엣지와 코너
 		int tEdge[4], tCorner[4];
@@ -250,7 +263,7 @@ public:
 	void ACW(int target)
 	{
 		//변수 선언
-		int temp, index = 0;
+		int index = 0;
 
 		//움직일 네 엣지와 코너
 		int tEdge[4], tCorner[4];
@@ -302,6 +315,9 @@ public:
 			this->corner[tCorner[i]].setPos( this->getColor(target).getCorner((i + 3) % 4) );
 		}
 	}
+
+	/*--------------------------------------------------------------------*/
+	//cubeFront 면을 기준으로 큐브의 한 면을 회전시키는 함수들
 
 	void L()
 	{
@@ -391,7 +407,244 @@ public:
 		D(); D();
 	}
 
-	//수정필요
+	/*--------------------------------------------------------------------*/
+
+	//외부 큐브의 상태를 입력받아 해당 상태로 변경하는 함수
+	void set()
+	{
+		int cb[6][3][3];
+		char col[6][10] = { "파", "빨", "초", "주", "흰", "노" };
+
+		//index번째 엣지가 사용되었는지 확인
+		int tEdge[12] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+		//index번째 코너가 사용되었는지 확인
+		int tCorner[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+		//[edge[i]/3][edge[i]%3]
+		int eCol[4] = { 1, 5, 7, 3 };
+		//[corner[i]/3][corner[i]%3]
+		int cCol[4] = { 2, 8, 6, 0 };
+
+		//각 엣지의 값을 읽어낼 때 쓸 변수
+		edgePiece *tE;
+		//각 코너의 값을 읽어낼 때 쓸 변수
+		cornerPiece *tC;
+
+		//col_in_ 함수의 호출을 최소화하기 위해 선언한 변수
+		int tFront, tLeft, tRight;
+
+		//큐브 입력받기
+		for (int i = 0; i < 6; i++)
+		{
+			cout << "Enter side of " << col[i] << endl << endl;
+
+			for (int j = 0; j < 9; j++)
+			{
+				cin >> cb[i][j / 3][j % 3];
+			}
+
+			cout << endl;
+			if (cb[i][1][1] != i)
+			{
+				cout << "Value of center is Wrong!" << endl;
+				return;
+			}
+		}
+
+		int byside[4] = { BLUE, RED, GREEN, ORANGE };
+
+		//층에 관계없이 각 블럭만으로 입력 가능할까?
+
+		//1층
+		for (int i = 0; i < 4; i++)
+		{
+			//1층 엣지
+			for (int j = 0; j < 12; j++)
+			{
+				//tEdge값이 -1일 때(=이미 확인된 엣지일 때) continue
+				if (tEdge[j] == -1) continue;
+
+				//j번째 엣지 선언
+				tE = &(this->edge[j]);
+				//tFront 초기화
+				tFront = col_in_edge(cb[ byside[i] ][2][1], tE);
+
+				//해당 위치의 각 측면 색이 엣지에 존재하지 않는 경우를 if문으로 걸러냄
+				if      (col_in_edge(cb[WHITE][ eCol[i] / 3 ][ eCol[i] % 3 ], tE) < 0)	continue;	//윗면
+				else if	(tFront < 0)													continue;	//앞면
+
+				//해당 위치의 모든 측면 색이 엣지에 존재한다면
+				else
+				{
+					//엣지의 위치를 i로 변경
+					tE->setPos(i);
+					//사용된 tEdge를 -1로 변경
+					tEdge[j] = -1;
+
+					//엣지가 byside[i]번째, 즉 옆면을 가리키고 있다면 방향을 옆면으로 변경
+					if (tFront == 2) tE->setDir(byside[i]);
+					//그렇지 않을 경우 밑면을 가리키고 있을 것이므로 방향을 밑면으로 변경
+					else tE->setDir(WHITE);
+
+					break;
+				}
+			}
+
+			//1층 코너
+			for (int j = 0; j < 8; j++)
+			{
+				//tCorner값이 -1일 때(=이미 확인된 엣지일 때) continue
+				if (tCorner[j] == -1) continue;
+
+				//j번째 코너 선언
+				tC = &(this->corner[j]);
+
+				//tLeft, tRight 초기화
+				int tLeft  = col_in_corner(cb[ byside[ (i + 1) % 4 ] ][2][0], tC);
+				int tRight = col_in_corner(cb[ byside[i] ][2][2], tC);
+
+				//해당 위치의 각 측면 색이 엣지에 존재하지 않는 경우를 if문으로 걸러냄
+				if      (col_in_corner(cb[WHITE][ cCol[i] / 3 ][ cCol[i] % 3 ], tC) < 0)	continue;	//윗면
+				else if (tLeft  < 0)														continue;	//왼면
+				else if (tRight < 0)														continue;	//오른면
+
+
+				else
+				{
+					//코너의 위치를 i로 변경
+					tC->setPos(i);
+					//사용된 tCorner를 -1로 변경
+					tCorner[j] = -1;
+
+					//엣지가 byside[i+1]번째, 즉 오른면을 가리키고 있다면 방향을 왼면으로 변경
+					if		(tLeft  == 2) tC->setDir( byside[ (i + 1) % 4 ] );
+					//그렇지 않고 엣지가 byside[i]번째, 즉 왼면을 가리키고 있다면 방향을 오른면으로 변경
+					else if (tRight == 2) tC->setDir(byside[i]);
+					//둘 다 아니라면 방향을 밑면으로 변경
+					else tC->setDir(WHITE);
+
+					break;
+				}
+			}
+		}
+		
+		//2층
+		for (int i = 0; i < 4; i++)
+		{
+			//2층 코너
+			for (int j = 0; j < 12; j++)
+			{
+				//tEdge값이 -1일 때(=이미 확인된 엣지일 때) continue
+				if (tEdge[j] == -1) continue;
+
+				//j번째 엣지 선언
+				tE = &(this->edge[j]);
+
+				//tLeft, tRight 초기화
+				tLeft  = col_in_edge(cb[ byside[i] ][1][2], tE);
+				tRight = col_in_edge(cb[ byside[ (i + 1) % 4 ] ][1][0], tE);
+
+				//해당 위치의 각 측면 색이 엣지에 존재하지 않는 경우를 if문으로 걸러냄
+				if		(tLeft  < 0) continue;	//윗면
+				else if	(tRight < 0) continue;	//앞면
+
+				//해당 위치의 모든 측면 색이 엣지에 존재한다면
+				else
+				{
+					//엣지의 위치를 i + 4로 변경
+					tE->setPos(i + 4);
+					//사용된 tEdge를 -1로 변경
+					tEdge[j] = -1;
+
+					//엣지가 byside[i]번째, 즉 옆면을 가리키고 있다면 방향을 왼면으로 변경
+					if (tLeft == 2) tE->setDir(byside[i]);
+					//그렇지 않을 경우 밑면을 가리키고 있을 것이므로 방향을 오른면으로 변경
+					else tE->setDir( byside[ (i + 1) % 4 ] );
+
+					break;
+				}
+			}
+		}
+
+		//3층에서 쓰일 수 있도록 각 값을 swap해 준다
+		swap(eCol[0], eCol[2]);
+		swap(cCol[0], cCol[1]);
+		swap(cCol[2], cCol[3]);
+
+		//3층
+		for (int i = 0; i < 4; i++)
+		{
+			//3층 엣지
+			for (int j = 0; j < 12; j++)
+			{
+				//tEdge값이 -1일 때(=이미 확인된 엣지일 때) continue
+				if (tEdge[j] == -1) continue;
+
+				//j번째 엣지 선언
+				tE = &(this->edge[j]);
+				//tFront 초기화
+				tFront = col_in_edge(cb[ byside[i] ][0][1], tE);
+
+				//해당 위치의 각 측면 색이 엣지에 존재하지 않는 경우를 if문으로 걸러냄
+				if		(col_in_edge(cb[YELLOW][ eCol[i] / 3 ][ eCol[i] % 3 ], tE) < 0)	continue;	//윗면
+				else if	(tFront < 0)													continue;	//앞면
+
+				//해당 위치의 모든 측면 색이 엣지에 존재한다면
+				else
+				{
+					//엣지의 위치를 i + 8로 변경
+					tE->setPos(i + 8);
+					//사용된 tEdge를 -1로 변경
+					tEdge[j] = -1;
+
+					//엣지가 byside[i]번째, 즉 옆면을 가리키고 있다면 방향을 dkv면으로 변경
+					if (tFront == 2) tE->setDir(byside[i]);
+					//그렇지 않을 경우 밑면을 가리키고 있을 것이므로 방향을 윗면으로 변경
+					else tE->setDir(YELLOW);
+
+					break;
+				}
+			}
+
+			//3층 코너
+			for (int j = 0; j < 8; j++)
+			{
+				//tCorner값이 -1일 때(=이미 확인된 엣지일 때) continue
+				if (tCorner[j] == -1) continue;
+
+				//j번째 코너 선언
+				tC = &(this->corner[j]);
+				//tleft, tRight 초기화
+				tLeft  = col_in_corner(cb[ byside[i] ][0][2], tC);
+				tRight = col_in_corner(cb[ byside[ (i + 1) % 4 ] ][0][0], tC);
+
+				//해당 위치의 각 측면 색이 엣지에 존재하지 않는 경우를 if문으로 걸러냄
+				if		(col_in_corner(cb[YELLOW][ cCol[i] / 3 ][ cCol[i] % 3 ], tC) < 0)	continue;	//윗면
+				else if	(tLeft  < 0)														continue;	//왼면
+				else if	(tRight < 0)														continue;	//오른면
+
+				else
+				{
+					//코너의 위치를 i + 4로 변경
+					tC->setPos(i + 4);
+					//사용된 tCorner를 -1로 변경
+					tCorner[j] = -1;
+
+					//엣지가 byside[i]번째, 즉 왼면을 가리키고 있다면 방향을 왼면으로 변경
+					if		(tLeft  == 2) tC->setDir(byside[i]);
+					//그렇지 않고 byside[i+1]번째, 즉 오른면을 가리키고 있다면 방향을 오른면으로 변경
+					else if	(tRight == 2) tC->setDir(byside[ (i + 1) % 4 ]);
+					//둘 다 아니라면 방향을 윗면으로 변경
+					else tC->setDir(YELLOW);
+
+					break;
+				}
+			}
+		}
+	
+		this->show();
+	}
+	//큐브의 현재 상태를 나타내는 함수
 	void show()
 	{
 		//print[면의 색][행][렬]
@@ -565,7 +818,6 @@ public:
 		//노란색 면을 맨 상하단 주석에 맞게 출력
 		for (int i = 0; i < 3; i++) cout << "　　　　" << col[print[YELLOW][i][0]] << col[print[YELLOW][i][1]] << col[print[YELLOW][i][2]] << endl;
 		cout << endl;
-
 		//옆쪽 면들을 맨 상하단 주석에 맞게 출력
 		for (int i = 0; i < 3; i++)
 		{
@@ -578,14 +830,12 @@ public:
 
 			cout << endl;
 		}
-
 		cout << endl;
-
 		//흰색 면을 맨 상하단 주석에 맞게 출력
 		for (int i = 0; i < 3; i++) cout << "　　　　" << col[print[WHITE][i][0]] << col[print[WHITE][i][1]] << col[print[WHITE][i][2]] << endl;
 		cout << endl << endl;
 	}
-
+	//큐브를 섞는 함수(구현중)
 	void shuffle()
 	{
 		U(); F(); Dp(); R();
@@ -598,7 +848,7 @@ public:
 	}
 
 	//1층 크로스
-	void basic_step1()
+	void step1()
 	{
 		//0~3번 엣지를 제자리에 위치시킨다 (크로스)
 		for (int i = 0; i < 4; i++)
@@ -607,54 +857,58 @@ public:
 			for (int j = 0; j < 4; j++)
 			{
 				//j가 i일 때, 즉 확인할 면이 i면일 때는 건너뜀
-				if (i == j) continue;
+				if (side[i] == side[j]) continue;
 
-				//만일 j 면에 i번째 엣지를 발견했다면
-				if (if_edgeIn( this->getEdge(i).getPos(), this->getColor(j) ))
+				//0번 위치일 경우
+					//이 경우 해당 면은 아직 엣지가 제자리에 들어오지 않음
+				if (this->getEdge(i).getPos() == this->getColor(side[j]).getEdge(0))
 				{
-					this->setFront(j);
+					this->setFront(side[j]);
 
-					//0번 위치일 경우
-					//이 경우 해당 면은 아직 엣지가 제자리에 돌아오지 않음
-					if (this->getEdge(i).getPos() == this->getColor(this->getFront()).getEdge(0))
-					{
-						//엣지가 해당하는 면의 0번 위치로 갈 때까지 윗면을 회전
-						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) 
-							this->U();
-					}
+					//엣지가 해당하는 면의 0번 위치로 갈 때까지 윗면을 회전
+					while (this->getEdge(i).getPos() != this->getColor(side[i]).getEdge(0))
+						this->U();
 
-					//j면의 1번 위치일 경우
-					//이 경우 해당 면은 엣지가 제자리에 돌아왔을 수 있음
-					else if (this->getEdge(i).getPos() == this->getColor(this->getFront()).getEdge(1))
-					{
-						//0번 위치로 뽑아낸 뒤
-						this->Fp();
+					break;
+				}
 
-						//엣지가 해당하는 면의 0번 위치로 갈 때까지 윗면을 회전
-						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) 
-							this->U();
+				//j면의 1번 위치일 경우
+				//이 경우 해당 면은 엣지가 제자리에 들어왔을 수 있음
+				else if (this->getEdge(i).getPos() == this->getColor(side[j]).getEdge(1))
+				{
+					this->setFront(side[j]);
 
-						//만일의 경우를 위해 면을 원상복귀
-						this->F();
-					}
+					//0번 위치로 뽑아낸 뒤
+					this->Fp();
 
-					//j면의 2번 위치일 경우
-					//이 경우 해당 면은 아직 엣지가 제자리에 돌아오지 않음
-					else if (this->getEdge(i).getPos() == this->getColor(this->getFront()).getEdge(2))
-					{
-						//0번 위치로 뽑아낸 뒤
-						this->F2();
+					//엣지가 해당하는 면의 0번 위치로 갈 때까지 윗면을 회전
+					while (this->getEdge(i).getPos() != this->getColor(side[i]).getEdge(0))
+						this->U();
 
-						//엣지가 해당하는 면의 0번 위치로 갈 때까지 윗면을 회전
-						while (this->getEdge(i).getPos() != this->getColor(i).getEdge(0)) 
-							this->U();
-					}
+					//만일의 경우를 위해 면을 원상복귀
+					this->F();
+
+					break;
+				}
+
+				//j면의 2번 위치일 경우
+				//이 경우 해당 면은 아직 엣지가 제자리에 들어오지 않음
+				else if (this->getEdge(i).getPos() == this->getColor(side[j]).getEdge(2))
+				{
+					this->setFront(side[j]);
+
+					//0번 위치로 뽑아낸 뒤
+					this->F2();
+
+					//엣지가 해당하는 면의 0번 위치로 갈 때까지 윗면을 회전
+					while (this->getEdge(i).getPos() != this->getColor(side[i]).getEdge(0))
+						this->U();
 
 					break;
 				}
 			}
 
-			this->setFront(i);
+			this->setFront(side[i]);
 
 			//각 엣지의 방향이 윗면을 가리키고 있을 때
 			if (this->getEdge(i).getDir() != this->getColor(this->getFront()).getSelf())
@@ -679,7 +933,7 @@ public:
 		this->setFront(BLUE);
 	}
 	//1층 코너
-	void basic_step2()
+	void step2()
 	{
 		//코너가 제자리에 있을 때 continue시킨다
 		bool cont;
@@ -694,10 +948,10 @@ public:
 			{
 				//만약 코너가 잘못된 1층 위치에 끼어있거나
 				//방향이 잘못된 상태로 끼어있을 경우
-				if (this->getCorner(i).getPos() == this->getColor(j).getCorner(1))
+				if (this->getCorner(i).getPos() == this->getColor(side[j]).getCorner(1))
 				{
 					//올바른 장소, 올바른 방향일 경우
-					if ((i == j) && (this->getCorner(i).getDir() == WHITE))
+					if ( (side[i] == side[j]) && (this->getCorner(i).getDir() == WHITE) )
 					{
 						//cont를 true로 맞춘다
 						cont = true;
@@ -707,7 +961,7 @@ public:
 					}
 
 					//j면에 대해
-					this->setFront(j);
+					this->setFront(side[j]);
 
 					//F' U F
 					this->Fp(); this->U(); this->F();
@@ -720,7 +974,7 @@ public:
 			//코너가 올바른 방향/위치에 있다면 continue
 			if (cont) continue;
 
-			this->setFront(i);
+			this->setFront( side[i] );
 
 			//각 코너가 1층에 없거나 1층에서 나왔으면 3층에 있을 것임
 			//i번 코너를 공식을 사용할 수 있는 위치로 이동
@@ -751,7 +1005,7 @@ public:
 		this->setFront(BLUE);
 	}
 	//2층 엣지
-	void basic_step3()
+	void step3()
 	{
 		//엣지가 제자리에 있을 때 continue시킨다
 		bool cont;
@@ -765,15 +1019,16 @@ public:
 			for (int j = 0; j < 4; j++)
 			{
 				//만일 엣지가 2층에 끼어있다면
-				if ( this->getEdge(i + 4).getPos() == this->getColor(j).getEdge(1) )
+				if ( this->getEdge(i + 4).getPos() == this->getColor(side[j]).getEdge(1) )
 				{
-					this->setFront(j);
+					this->setFront(side[j]);
 
 					//엣지가 제 자리에 있는 경우
-					if (i == j)
+					if (side[i] == side[j])
 					{
 						//방향이 다르다면 방향을 고쳐준다
-						if ( this->getEdge(i + 4).getDir() != this->getColor(j).getSelf() )
+						//방향이 같다면 어떠한 행동도 할 필요 없음
+						if ( this->getEdge(i + 4).getDir() != this->getColor(side[j]).getSelf() )
 						{
 							//R2 U2 F R2 F' U2 R' U R'
 							this->R2(); this->U2(); this->F(); this->R2(); this->Fp(); this->U2(); this->Rp(); this->U(); this->Rp();
@@ -797,10 +1052,10 @@ public:
 			if (cont) continue;
 
 			//엣지의 방향이 윗면을 향할 경우
-			if ( this->getEdge(i + 4).getDir() == this->getColor(i).getBy(0) )
+			if ( this->getEdge(i + 4).getDir() == this->getColor(side[i]).getBy(0) )
 			{
 				//큐브의 front를 왼쪽 면으로 바꿔준다
-				this->setFront( this->getColor(i).getBy(1) );
+				this->setFront( this->getColor(side[i]).getBy(1) );
 
 				//각 엣지의 위치가 i의 0번 위치로 이동할 때까지 U'
 				while ( this->getEdge(i + 4).getPos() != this->getColor(this->getFront()).getEdge(0) )
@@ -813,10 +1068,10 @@ public:
 			else
 			{
 				//큐브의 front를 현재 면으로 바꿔준다
-				this->setFront(i);
+				this->setFront(side[i]);
 
 				//각 엣지의 위치가 i의 0번 위치로 이동할 때까지 U
-				while (this->getEdge(i + 4).getPos() != this->getColor(i).getEdge(0)) U();
+				while (this->getEdge(i + 4).getPos() != this->getColor(side[i]).getEdge(0)) U();
 
 				//U R U' R' U' F' U F
 				this->U(); this->R(); this->Up(); this->Rp(); this->Up(); this->Fp(); this->U(); this->F();
@@ -827,12 +1082,12 @@ public:
 		this->setFront(BLUE);
 	}
 	//3층 크로스 (1차)
-	void basic_step4()
+	void step4()
 	{
 		//윗면을 가리키는 두 엣지의 인덱스
 		int theDir[2];
 
-		int index = 0;
+		int count = 0;
 
 		//큐브의 윗면
 		int head = this->getColor(this->getFront()).getBy(0);
@@ -840,30 +1095,33 @@ public:
 		//윗면의 각 엣지에 대해
 		for (int i = 0; i < 4; i++)
 		{
+			//시간절약을 위해 eIndex를 참조하게 만듬
+			int index = this->getColor(head).getEdge(i);
+
 			//윗면에 존재하는 엣지 중 윗면을 가리키는 엣지가 존재한다면
-			if (this->getEdge(this->getColor(head).getEdge(i)).getDir() == head)
+			if (this->getEdge(index).getDir() == head)
 			{
 				//해당 엣지의 인덱스를 theDir에 저장
-				if (index < 2) theDir[index] = this->getColor(head).getEdge(i);
-				index += 1;
+				if (count < 2) theDir[count] = index;
+				count += 1;
 			}
 		}
 
 		//윗면을 가리키고 있는 엣지의 수가 0일 때
-		if (index == 0)
+		if (count == 0)
 		{
 			//F U R U' R' F'
 			this->F(); this->U(); this->R(); this->Up(); this->Rp(); this->Fp();
 		}
 
 		//윗면을 가리키고 있는 엣지의 수가 2일 때
-		if (index == 2)
+		if (count == 2)
 		{
 			//두 엣지의 차가 2라면 (=두 엣지가 마주한다면)
 			if (abs(this->getEdge(theDir[0]).getPos() - this->getEdge(theDir[1]).getPos()) == 2)
 			{
 				//두 엣지의 위치가 ㅡ 모양이 되도록 윗면을 회전
-				if (this->getEdge(8).getDir() == head) this->U();
+				if (this->getEdge( find_edge_by_pos(8) ).getDir() == head) this->U();
 
 				//F R U R' U' F'
 				this->F(); this->R(); this->U(); this->Rp(); this->Up(); this->Fp();
@@ -886,85 +1144,86 @@ public:
 		this->setFront(BLUE);
 	}
 	//3층 크로스 (2차)
-	void basic_step5()
+	void step5()
 	{
 		//제자리에 들어간 두 엣지의 인덱스
 		int thePos[2];
-
-		int index;
-
+		//thePos에 값을 삽입할 때 사용
+		int index = 0;
 		//큐브의 윗면
 		int head = this->getColor(this->getFront()).getBy(0);
 
-		while (1)
+		//윗면의 각 엣지에 대해
+		for (int i = 0; i < 4; i++)
 		{
-			//index를 초기화
-			index = 0;
+			//윗면에 존재하는 엣지 중 윗면을 가리키는 엣지가 존재한다면
+			if (this->getEdge(this->getColor(head).getEdge(i)).getPos() == this->getColor(head).getEdge(i))
+			{
+				//해당 엣지의 인덱스를 thePos에 저장
+				if (index < 2) thePos[index] = this->getColor(head).getEdge(i);
+				index += 1;
+			}
+		}
 
-			//윗면의 각 엣지에 대해
+		//제자리에 위치하는 엣지의 수가 2개 미만일 때 
+		while (index < 2)
+		{
+			//U
+			this->U();
+
+			//윗면을 회전했으므로 index를 초기화한 뒤 다시 계산
+			index = 0;
 			for (int i = 0; i < 4; i++)
 			{
-				//윗면에 존재하는 엣지 중 윗면을 가리키는 엣지가 존재한다면
-				if (this->getEdge( this->getColor(head).getEdge(i) ).getPos() == this->getColor(head).getEdge(i))
+				if (this->getEdge(this->getColor(head).getEdge(i)).getPos() == this->getColor(head).getEdge(i))
 				{
-					//해당 엣지의 인덱스를 thePos에 저장
 					if (index < 2) thePos[index] = this->getColor(head).getEdge(i);
 					index += 1;
 				}
 			}
-
-			//제자리에 위치하는 엣지의 수가 2개 미만일 때 U
-			if (index < 2) this->U();
-
-			//제자리에 위치하는 엣지의 수가 2개일 때
-			else if (index == 2)
-			{
-
-				//두 엣지의 차가 2라면 (=두 엣지가 마주한다면)
-				if ( abs( this->getEdge( thePos[0] ).getPos() - this->getEdge( thePos[1] ).getPos() ) == 2)
-				{
-					//공식을 사용할 수 있게 큐브의 위치를 조정
-					if (this->getEdge( thePos[0] ).getPos() % 2 != 0) 
-						U();
-
-					//L U L' U L U2 L'
-					this->L(); this->U(); this->Lp(); this->U(); this->L(); this->U2(); this->Lp();
-
-					//다음 공식을 사용할 수 있게 큐브의 위치를 조정
-					this->setFront(this->getColor(this->getFront()).getBy(3));
-				}
-
-				//그렇지 않다면 (=두 엣지가 이웃한다면)
-				else
-				{
-					//예외사항 처리
-					if (thePos[0] + thePos[1] == 21) swap(thePos[0], thePos[1]);
-
-					//공식을 사용할 수 있게 큐브의 위치를 조정
-					while (thePos[0] != this->getColor( this->getFront() ).getEdge(0)) 
-						this->setFront(this->getColor( this->getFront() ).getBy(1));
-				}
-
-				//L U L' U L U2 L' U
-				this->L(); this->U(); this->Lp(); this->U(); this->L(); this->U2(); this->Lp(); this->U();
-
-				//무한 while문을 사용했으므로 while문을 벗어남
-				break;
-			}
-
-			else if (index == 4)
-			{
-				//정리가 완료되었으므로 함수를 종료
-				return;
-			}
 		}
+
+		//제자리에 위치하는 엣지의 수가 2개일 때
+		if (index == 2)
+		{
+
+			//두 엣지 위치의 차가 2라면 (=두 엣지가 마주한다면)
+			if (abs(this->getEdge(thePos[0]).getPos() - this->getEdge(thePos[1]).getPos()) == 2)
+			{
+				//공식을 사용할 수 있게 큐브의 위치를 조정
+				if (this->getEdge(thePos[0]).getPos() % 2 != 0)
+					U();
+
+				//L U L' U L U2 L'
+				this->L(); this->U(); this->Lp(); this->U(); this->L(); this->U2(); this->Lp();
+
+				//다음 공식을 사용할 수 있게 큐브의 위치를 조정
+				this->setFront(this->getColor(this->getFront()).getBy(3));
+			}
+
+			//그렇지 않다면 (=두 엣지가 이웃한다면)
+			else
+			{
+				//예외사항 처리
+				if (thePos[0] + thePos[1] == 21) swap(thePos[0], thePos[1]);
+
+				//공식을 사용할 수 있게 큐브의 위치를 조정
+				while (thePos[0] != this->getColor(this->getFront()).getEdge(0))
+					this->setFront(this->getColor(this->getFront()).getBy(1));
+			}
+
+			//L U L' U L U2 L' U
+			this->L(); this->U(); this->Lp(); this->U(); this->L(); this->U2(); this->Lp(); this->U();
+		}
+
+		//제자리에 위치하는 엣지의 수가 4개일 때 정리가 완료되었으므로 함수를 종료
+		else if (index == 4) return;
 	}
 	//3층 코너 방향 맞추기
-	void basic_step6()
+	void step6()
 	{
 		//방향이 제대로 들어맞은 코너의 수
 		int count = 0;
-
 		//각 코너의 방향
 		int orient[4];
 
@@ -1052,7 +1311,7 @@ public:
 				return;
 			}
 
-			//해당 코너 바로 다음 코너의 방향이 count+1번째 옆면이라면
+			//해당 코너 바로 다음 코너의 방향이 count + 1번째 옆면이라면
 			else if ( orient[ (count + 1) % 4 ] == this->getColor(YELLOW).getBy((count + 1) % 4) )
 			{
 				//count + 1번째 옆면으로 앞면을 이동
@@ -1159,7 +1418,7 @@ public:
 		else return;
 	}
 	//3층 코너 위치 맞추기
-	void basic_step7()
+	void step7()
 	{
 		//위치가 제대로 들어맞은 코너의 위치
 		int count = 0;
@@ -1243,31 +1502,33 @@ public:
 		}
 	}
 
-	void basic_sort()
+	//큐브 맞추기
+	void solve()
 	{
-		this->basic_step1();
 		this->show();
-		this->basic_step2();
+		this->step1();
 		this->show();
-		this->basic_step3();
+		this->step2();
 		this->show();
-		this->basic_step4();
+		this->step3();
 		this->show();
-		this->basic_step5();
+		this->step4();
 		this->show();
-		this->basic_step6();
+		this->step5();
 		this->show();
-		this->basic_step7();
+		this->step6();
+		this->show();
+		this->step7();
 		this->show();
 	}
 };
 
 int main()
 {
-	class three_by_three cube;
+	class three_by_three cube, cube2;
 
 	cube.shuffle();
-	cube.basic_sort();
+	cube.solve();
 
 	int i;
 	cin >> i;
